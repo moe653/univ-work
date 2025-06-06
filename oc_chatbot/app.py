@@ -2,16 +2,14 @@
 from flask import Flask, render_template, request, session, redirect, url_for
 import os
 import csv 
-from collections import defaultdict # ジャンルごとに質問をグループ化するために追加
+from collections import defaultdict 
 
-# Flaskアプリケーションのインスタンスを作成
 app = Flask(__name__)
 app.secret_key = os.urandom(24) 
 
 # --- 研究室に関する情報の定義 ---
 def load_lab_info_from_csv(filepath='lab_info.csv'):
     lab_info = {}
-    # ジャンルごとに質問を格納するための辞書
     categorized_lab_info = defaultdict(dict) 
     try:
         with open(filepath, 'r', encoding='utf-8') as csvfile:
@@ -21,7 +19,7 @@ def load_lab_info_from_csv(filepath='lab_info.csv'):
                 lab_info[row['id']] = {
                     "question": row['question'],
                     "answer": row['answer'],
-                    "genre": row.get('genre', 'その他') # genre列がない場合は'その他'を設定
+                    "genre": row.get('genre', 'その他') 
                 }
                 # ジャンルごとに質問をグループ化
                 categorized_lab_info[row.get('genre', 'その他')][row['id']] = {
@@ -49,13 +47,11 @@ def load_lab_info_from_csv(filepath='lab_info.csv'):
         }
         categorized_lab_info["その他"] = {
             "1": {"question": "ダミー質問1？", "answer": "ダミー回答1です。"},
-            "2": {"question": "ダミー質問2？", "answer": "ダミー回答2です。"}
+            "2": {"question": "ダミー質問2？", "answer": "ダミー回答2です."}
         }
 
-    # LAB_INFOとジャンル分けされた情報の両方を返す
     return lab_info, categorized_lab_info
 
-# アプリケーション起動時にCSVから情報を読み込む
 LAB_INFO, CATEGORIZED_LAB_INFO = load_lab_info_from_csv()
 
 # --- 補助関数 ---
@@ -68,17 +64,37 @@ def get_answer_from_selection(choice):
 
 # --- ルート（URLとPython関数のマッピング）の設定 ---
 
+# トップページ。ジャンル選択ボタンを表示する。
 @app.route("/", methods=["GET", "POST"])
 def home():
     session.clear() 
     session['chat_history'] = []
-    # ジャンル分けされた情報をテンプレートに渡す
-    return render_template("index.html", lab_info=CATEGORIZED_LAB_INFO, chat_history=session['chat_history'])
+    # ジャンルのリストをテンプレートに渡す
+    # CATEGORIZED_LAB_INFO.keys() でジャンル名のみを取得
+    return render_template("index.html", genres=CATEGORIZED_LAB_INFO.keys(), chat_history=session['chat_history'])
 
+# ジャンルが選択されたときに呼び出される新しいルート
+@app.route("/select_genre", methods=["POST"])
+def select_genre():
+    selected_genre = request.form['genre_choice'] # ユーザーが選択したジャンル名を取得
+
+    # 選択されたジャンルの質問リストをテンプレートに渡す
+    # ここではchat_historyは引き継がず、新たなチャットが始まるイメージ
+    questions_in_genre = CATEGORIZED_LAB_INFO.get(selected_genre, {})
+
+    # 選択されたジャンルをセッションに保存（後でチャット履歴表示のために使う可能性も考慮）
+    session['selected_genre'] = selected_genre 
+
+    # ジャンル内の質問を表示するためのテンプレートをレンダリング
+    return render_template("genre_questions.html", 
+                           genre_name=selected_genre, 
+                           questions=questions_in_genre,
+                           chat_history=session['chat_history'])
+
+# 質問が選択されたときに呼び出されるルート
 @app.route("/chat", methods=["POST"])
 def chat():
     user_choice = request.form['question_choice'] 
-
     user_question_text = LAB_INFO.get(user_choice, {}).get("question", "不明な質問")
 
     chat_history = session.get('chat_history', [])
@@ -91,8 +107,15 @@ def chat():
 
     session['chat_history'] = chat_history
 
-    # ジャンル分けされた情報をテンプレートに渡す
-    return render_template("index.html", lab_info=CATEGORIZED_LAB_INFO, chat_history=chat_history)
+    # 質問選択後もジャンル内の質問ボタンを表示するために、同じジャンルを再度渡す
+    # 選択されたジャンルをセッションから取得
+    selected_genre = session.get('selected_genre', '不明なジャンル') 
+    questions_in_genre = CATEGORIZED_LAB_INFO.get(selected_genre, {})
+
+    return render_template("genre_questions.html", 
+                           genre_name=selected_genre, 
+                           questions=questions_in_genre, 
+                           chat_history=chat_history)
 
 # --- アプリケーションの実行 ---
 if __name__ == "__main__":

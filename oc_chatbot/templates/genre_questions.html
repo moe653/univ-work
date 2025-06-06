@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>研究室チャットボット</title>
+    <title>研究室チャットボット - {{ genre_name }}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -46,26 +46,44 @@
             color: #28a745;
             text-align: right;
         }
-        .genre-list { /* ジャンル選択用のスタイルを追加 */
+        .options-list {
             list-style: none;
             padding: 0;
         }
-        .genre-list li {
-            margin-bottom: 10px;
+        .options-list li {
+            margin-bottom: 8px;
         }
-        .genre-list button {
+        .options-list button {
             width: 100%;
-            padding: 12px;
-            background-color: #28a745; /* ジャンルボタンの色を少し変える */
+            padding: 10px;
+            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 16px;
             transition: background-color 0.3s ease;
         }
-        .genre-list button:hover {
-            background-color: #218838;
+        .options-list button:hover {
+            background-color: #0056b3;
+        }
+        .back-button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #6c757d; /* 戻るボタンの色 */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            text-align: center;
+            text-decoration: none;
+            margin-top: 15px;
+            transition: background-color 0.3s ease;
+        }
+        .back-button:hover {
+            background-color: #5a6268;
         }
     </style>
 </head>
@@ -74,7 +92,7 @@
         <h1>研究室チャットボット</h1>
 
         <div class="message-area">
-            <div class="message bot">チャットボット: まず、ご質問のジャンルを選択してください。</div>
+            <div class="message bot">チャットボット: ジャンル "{{ genre_name }}" のご質問を選択してください。</div>
             {% if chat_history %}
                 {% for entry in chat_history %}
                     <div class="message {{ entry.speaker }}">{{ entry.speaker_label }}: {{ entry.text }}</div>
@@ -82,16 +100,17 @@
             {% endif %}
         </div>
 
-        <ul class="genre-list">
-            {% for genre in genres %}
+        <ul class="options-list">
+            {% for num, info in questions.items() %}
                 <li>
-                    <form action="/select_genre" method="post">
-                        <input type="hidden" name="genre_choice" value="{{ genre }}">
-                        <button type="submit">{{ genre }}</button>
+                    <form action="/chat" method="post">
+                        <input type="hidden" name="question_choice" value="{{ num }}">
+                        <button type="submit">{{ num }}. {{ info.question }}</button>
                     </form>
                 </li>
             {% endfor %}
         </ul>
+        <a href="/" class="back-button">ジャンル選択に戻る</a>
     </div>
 </body>
 </html>
