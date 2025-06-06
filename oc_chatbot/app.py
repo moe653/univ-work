@@ -1,23 +1,30 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, render_template, request, session, redirect, url_for
 import os
-import csv # CSVファイルを扱うために追加
+import csv 
+from collections import defaultdict # ジャンルごとに質問をグループ化するために追加
 
 # Flaskアプリケーションのインスタンスを作成
 app = Flask(__name__)
-# セッション（ユーザーの状態を保存するため）のための秘密鍵を設定
 app.secret_key = os.urandom(24) 
 
 # --- 研究室に関する情報の定義 ---
-# LAB_INFOをCSVから読み込む関数
 def load_lab_info_from_csv(filepath='lab_info.csv'):
     lab_info = {}
+    # ジャンルごとに質問を格納するための辞書
+    categorized_lab_info = defaultdict(dict) 
     try:
         with open(filepath, 'r', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                # CSVのidをキーとして、questionとanswerを辞書として保存
+                # CSVのidをキーとして、question, answer, genreを辞書として保存
                 lab_info[row['id']] = {
+                    "question": row['question'],
+                    "answer": row['answer'],
+                    "genre": row.get('genre', 'その他') # genre列がない場合は'その他'を設定
+                }
+                # ジャンルごとに質問をグループ化
+                categorized_lab_info[row.get('genre', 'その他')][row['id']] = {
                     "question": row['question'],
                     "answer": row['answer']
                 }
@@ -25,8 +32,11 @@ def load_lab_info_from_csv(filepath='lab_info.csv'):
     except FileNotFoundError:
         print(f"エラー: '{filepath}' が見つかりませんでした。")
         print("ダミーデータを使用します。")
-        # ファイルが見つからない場合のダミーデータ（開発用）
         lab_info = {
+            "1": {"question": "ダミー質問1？", "answer": "ダミー回答1です。", "genre": "その他"},
+            "2": {"question": "ダミー質問2？", "answer": "ダミー回答2です。", "genre": "その他"}
+        }
+        categorized_lab_info["その他"] = {
             "1": {"question": "ダミー質問1？", "answer": "ダミー回答1です。"},
             "2": {"question": "ダミー質問2？", "answer": "ダミー回答2です。"}
         }
@@ -34,13 +44,19 @@ def load_lab_info_from_csv(filepath='lab_info.csv'):
         print(f"CSVファイルの読み込み中にエラーが発生しました: {e}")
         print("ダミーデータを使用します。")
         lab_info = {
+            "1": {"question": "ダミー質問1？", "answer": "ダミー回答1です。", "genre": "その他"},
+            "2": {"question": "ダミー質問2？", "answer": "ダミー回答2です。", "genre": "その他"}
+        }
+        categorized_lab_info["その他"] = {
             "1": {"question": "ダミー質問1？", "answer": "ダミー回答1です。"},
             "2": {"question": "ダミー質問2？", "answer": "ダミー回答2です。"}
         }
-    return lab_info
+
+    # LAB_INFOとジャンル分けされた情報の両方を返す
+    return lab_info, categorized_lab_info
 
 # アプリケーション起動時にCSVから情報を読み込む
-LAB_INFO = load_lab_info_from_csv()
+LAB_INFO, CATEGORIZED_LAB_INFO = load_lab_info_from_csv()
 
 # --- 補助関数 ---
 def get_answer_from_selection(choice):
@@ -52,19 +68,17 @@ def get_answer_from_selection(choice):
 
 # --- ルート（URLとPython関数のマッピング）の設定 ---
 
-# "/" にアクセスがあったときに実行される関数
 @app.route("/", methods=["GET", "POST"])
 def home():
     session.clear() 
     session['chat_history'] = []
-    return render_template("index.html", lab_info=LAB_INFO, chat_history=session['chat_history'])
+    # ジャンル分けされた情報をテンプレートに渡す
+    return render_template("index.html", lab_info=CATEGORIZED_LAB_INFO, chat_history=session['chat_history'])
 
-# "/chat" にPOSTリクエストがあったときに実行される関数
 @app.route("/chat", methods=["POST"])
 def chat():
     user_choice = request.form['question_choice'] 
 
-    # 選択された質問がLAB_INFOに存在するか確認し、存在しない場合はデフォルトの質問テキストを設定
     user_question_text = LAB_INFO.get(user_choice, {}).get("question", "不明な質問")
 
     chat_history = session.get('chat_history', [])
@@ -77,7 +91,8 @@ def chat():
 
     session['chat_history'] = chat_history
 
-    return render_template("index.html", lab_info=LAB_INFO, chat_history=chat_history)
+    # ジャンル分けされた情報をテンプレートに渡す
+    return render_template("index.html", lab_info=CATEGORIZED_LAB_INFO, chat_history=chat_history)
 
 # --- アプリケーションの実行 ---
 if __name__ == "__main__":
