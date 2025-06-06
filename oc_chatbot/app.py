@@ -13,7 +13,7 @@ app.secret_key = os.urandom(24)
 LAB_INFO = {
     "1": {
         "question" : "研究室の場所はどこですか？",
-        "answer" : "当研究室は，高知工科大学香美キャンパスのA棟A358にあります．"
+        "answer" : "当研究室は，oo大学のo棟ooにあります．"
     },
     "2": {
         "question" : "研究室には何人の学生がいますか？",
