@@ -1,25 +1,46 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, render_template, request, session, redirect, url_for
 import os
+import csv # CSVファイルを扱うために追加
 
 # Flaskアプリケーションのインスタンスを作成
 app = Flask(__name__)
 # セッション（ユーザーの状態を保存するため）のための秘密鍵を設定
-# 本番環境では、より複雑で予測不能な値を設定してください
 app.secret_key = os.urandom(24) 
 
-
 # --- 研究室に関する情報の定義 ---
-LAB_INFO = {
-    "1": {
-        "question" : "研究室の場所はどこですか？",
-        "answer" : "当研究室は，oo大学のo棟ooにあります．"
-    },
-    "2": {
-        "question" : "研究室には何人の学生がいますか？",
-        "answer" : "現在約20人の学生が在籍しています．"
-    }
-}
+# LAB_INFOをCSVから読み込む関数
+def load_lab_info_from_csv(filepath='lab_info.csv'):
+    lab_info = {}
+    try:
+        with open(filepath, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # CSVのidをキーとして、questionとanswerを辞書として保存
+                lab_info[row['id']] = {
+                    "question": row['question'],
+                    "answer": row['answer']
+                }
+        print(f"CSVファイル '{filepath}' から情報を読み込みました。")
+    except FileNotFoundError:
+        print(f"エラー: '{filepath}' が見つかりませんでした。")
+        print("ダミーデータを使用します。")
+        # ファイルが見つからない場合のダミーデータ（開発用）
+        lab_info = {
+            "1": {"question": "ダミー質問1？", "answer": "ダミー回答1です。"},
+            "2": {"question": "ダミー質問2？", "answer": "ダミー回答2です。"}
+        }
+    except Exception as e:
+        print(f"CSVファイルの読み込み中にエラーが発生しました: {e}")
+        print("ダミーデータを使用します。")
+        lab_info = {
+            "1": {"question": "ダミー質問1？", "answer": "ダミー回答1です。"},
+            "2": {"question": "ダミー質問2？", "answer": "ダミー回答2です。"}
+        }
+    return lab_info
+
+# アプリケーション起動時にCSVから情報を読み込む
+LAB_INFO = load_lab_info_from_csv()
 
 # --- 補助関数 ---
 def get_answer_from_selection(choice):
@@ -34,35 +55,28 @@ def get_answer_from_selection(choice):
 # "/" にアクセスがあったときに実行される関数
 @app.route("/", methods=["GET", "POST"])
 def home():
-    # 新しいセッション開始時にチャット履歴をクリア
     session.clear() 
-    # チャット履歴を初期化
     session['chat_history'] = []
-    # lab_infoをテンプレートに渡して、index.htmlを表示
     return render_template("index.html", lab_info=LAB_INFO, chat_history=session['chat_history'])
 
 # "/chat" にPOSTリクエストがあったときに実行される関数
 @app.route("/chat", methods=["POST"])
 def chat():
-    user_choice = request.form['question_choice'] # ユーザーが選択した質問の番号を取得
-    user_question_text = LAB_INFO[user_choice]["question"] # 選択された質問のテキストを取得
+    user_choice = request.form['question_choice'] 
 
-    # チャット履歴をセッションから取得、なければ初期化
+    # 選択された質問がLAB_INFOに存在するか確認し、存在しない場合はデフォルトの質問テキストを設定
+    user_question_text = LAB_INFO.get(user_choice, {}).get("question", "不明な質問")
+
     chat_history = session.get('chat_history', [])
 
-    # ユーザーの質問を履歴に追加
     chat_history.append({'speaker': 'user', 'speaker_label': 'あなた', 'text': user_question_text})
 
-    # 回答を取得
     answer = get_answer_from_selection(user_choice)
 
-    # チャットボットの回答を履歴に追加
     chat_history.append({'speaker': 'bot', 'speaker_label': 'チャットボット', 'text': answer})
 
-    # 更新された履歴をセッションに保存
     session['chat_history'] = chat_history
 
-    # テンプレートにデータを渡してindex.htmlを再表示
     return render_template("index.html", lab_info=LAB_INFO, chat_history=chat_history)
 
 # --- アプリケーションの実行 ---
