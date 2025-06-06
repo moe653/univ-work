@@ -46,6 +46,22 @@
             color: #28a745;
             text-align: right;
         }
+        .genre-section {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #fcfcfc;
+        }
+        .genre-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #555;
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
         .options-list {
             list-style: none;
             padding: 0;
@@ -82,16 +98,21 @@
             {% endif %}
         </div>
 
-        <ul class="options-list">
-            {% for num, info in lab_info.items() %}
-                <li>
-                    <form action="/chat" method="post">
-                        <input type="hidden" name="question_choice" value="{{ num }}">
-                        <button type="submit">{{ num }}. {{ info.question }}</button>
-                    </form>
-                </li>
-            {% endfor %}
-        </ul>
+        {% for genre, questions in lab_info.items() %}
+            <div class="genre-section">
+                <h2 class="genre-title">{{ genre }}</h2>
+                <ul class="options-list">
+                    {% for num, info in questions.items() %}
+                        <li>
+                            <form action="/chat" method="post">
+                                <input type="hidden" name="question_choice" value="{{ num }}">
+                                <button type="submit">{{ num }}. {{ info.question }}</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
     </div>
 </body>
 </html>
